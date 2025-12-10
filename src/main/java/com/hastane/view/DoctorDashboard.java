@@ -108,9 +108,17 @@ public class DoctorDashboard extends JFrame {
             @Override public boolean isCellEditable(int row, int column) { return false; }
         };
         tableRandevular = new JTable(tableModel);
-        tableRandevular.setRowHeight(30);
-        tableRandevular.getColumnModel().getColumn(0).setMinWidth(0);
-        tableRandevular.getColumnModel().getColumn(0).setMaxWidth(0);
+
+// --- GÖRSEL AYARLAR BAŞLANGIÇ ---
+        tableRandevular.setRowHeight(35); // Satır yüksekliği
+        tableRandevular.setShowHorizontalLines(true);
+        tableRandevular.setShowVerticalLines(false);
+        tableRandevular.getTableHeader().setFont(new Font("Segoe UI", Font.BOLD, 14));
+        tableRandevular.getTableHeader().setOpaque(false);
+        tableRandevular.getTableHeader().setBackground(new Color(33, 150, 243)); // Başlık Mavi olsun
+        tableRandevular.getTableHeader().setForeground(Color.WHITE); // Başlık yazısı Beyaz
+        tableRandevular.setSelectionBackground(new Color(232, 240, 254)); // Seçilince açık mavi olsun
+        tableRandevular.setSelectionForeground(Color.BLACK);
 
         randevulariListele(false); // İlk açılışta hepsi
 
