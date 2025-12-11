@@ -6,28 +6,38 @@ Bu proje, **Yazılım Mimarisi ve Tasarımı** dersi kapsamında geliştirilmiş
 
 ---
 
+## 👥 Proje Ekibi
+
+| Adı Soyadı | Öğrenci No |
+| :--- | :--- |
+| **Arda Yiğit** | 1230505022 |
+| **Abdullah Altunkaynak** | 1230505028 |
+
+---
+
 ## 📋 Proje Özellikleri
 
 Uygulama iki temel kullanıcı rolü üzerine kurulmuştur: **Hasta** ve **Doktor**.
 
 ### 👤 Hasta Modülü
 * **Randevu Alma:** Poliklinik, doktor, tarih ve saat seçerek yeni randevu oluşturma.
-    * *Özellik:* Sadece doktorun müsait olduğu (dolu olmayan ve çalışma saati içinde kalan) saatler listelenir.
+    * *Akıllı Kontrol:* Sadece doktorun müsait olduğu (dolu olmayan ve çalışma saati içinde kalan) saatler listelenir.
 * **Randevu Yönetimi:**
     * **Aktif Randevular:** Gelecek randevuları görüntüleme, iptal etme veya tarihini değiştirme (Reschedule).
-    * **Geçmiş Randevular:** Tamamlanan veya iptal edilen randevuların tarihçesini görüntüleme.
+    * **Geçmiş Randevular:** Tamamlanan veya iptal edilen randevuların tarihçesini ayrı bir sekmede görüntüleme.
 * **Gelişmiş Arama:** Doktor adı, branş veya randevu durumuna göre dinamik filtreleme.
-* **Profil Yönetimi:** Kişisel bilgileri ve şifreyi güncelleme.
+* **Profil Yönetimi:** Kişisel bilgileri güncelleme ve şifre değiştirme.
 
 ### 👨‍⚕️ Doktor Modülü
 * **Randevu Takvimi:**
-    * **Günlük/Haftalık Görünüm:** Randevuları günlük veya haftalık periyotlarda filtreleme.
+    * **Günlük/Haftalık Görünüm:** Randevuları tek tıkla günlük veya haftalık periyotlarda filtreleme.
     * **Detaylı Liste:** Hastanın adı, randevu saati ve notları içeren liste görünümü.
 * **Çalışma Saati Yönetimi:**
     * Hangi günlerde, hangi saat aralıklarında (Örn: 09:00 - 12:00) çalışılacağını belirleme.
-    * "Bu gün çalışmıyorum" seçeneği ile günü kapatma.
-* **Hasta Takibi:** Randevuya gelmeyen hastaları işaretleme ("GELMEDİ") veya muayeneyi tamamlama.
-* **İptal Takibi:** İptal edilen randevuları ayrı bir sekmede görüntüleme.
+    * "Bu gün çalışmıyorum" seçeneği ile günü kapatma ve o güne randevu alınmasını engelleme.
+* **Hasta Takibi:** Randevuya gelmeyen hastaları işaretleme ("GELMEDİ") veya muayeneyi tamamlama ("TAMAMLANDI").
+* **İptal Takibi:** İptal edilen ve gelmeyen hastaları ayrı bir sekmede görüntüleme.
+* **Arama ve Filtreleme:** Hasta Adı veya TC Kimlik No ile hızlı arama yapabilme.
 
 ---
 
@@ -36,18 +46,18 @@ Uygulama iki temel kullanıcı rolü üzerine kurulmuştur: **Hasta** ve **Dokto
 Proje, **S.O.L.I.D** prensiplerine uygun olarak geliştirilmiş ve aşağıdaki tasarım desenleri (Design Patterns) aktif olarak kullanılmıştır:
 
 ### 1. Zorunlu Desenler
-* **Singleton Pattern:** `DatabaseConnection` sınıfında kullanılmıştır. Veritabanı bağlantısının uygulama genelinde tek bir örnek (instance) üzerinden yönetilmesini sağlar.
-* **Factory Pattern:** `UserFactory` sınıfında kullanılmıştır. Kullanıcı giriş tipine göre (`"HASTA"` veya `"DOKTOR"`) ilgili nesnenin üretimini sağlar.
-* **Observer Pattern:** `AppointmentService` içerisindeki bildirim yapısında kullanılmıştır. Randevu alındığında, güncellendiğinde veya iptal edildiğinde sisteme (ConsoleLogger) anlık bildirim gönderilir.
-* **State Pattern:** Randevu durumlarını yönetmek için altyapı hazırlanmıştır (`IAppointmentState`, `PendingState`, `ConfirmedState`, `CancelledState`). Randevunun yaşam döngüsü bu durumlar üzerinden yönetilir.
+* **Singleton Pattern:** `DatabaseConnection` sınıfında kullanılmıştır. [cite_start]Veritabanı bağlantısının uygulama genelinde tek bir örnek (instance) üzerinden yönetilmesini sağlar. [cite: 3]
+* **Factory Pattern:** `UserFactory` sınıfında kullanılmıştır. [cite_start]Kullanıcı giriş tipine göre (`"HASTA"` veya `"DOKTOR"`) ilgili nesnenin üretimini sağlar. [cite: 5]
+* **Observer Pattern:** `AppointmentService` içerisindeki bildirim yapısında kullanılmıştır. [cite_start]Randevu alındığında, güncellendiğinde veya iptal edildiğinde sisteme (ConsoleLogger) anlık bildirim gönderilir. [cite: 8]
+* **State Pattern:** Randevu durumlarını yönetmek için altyapı hazırlanmıştır (`IAppointmentState`, `PendingState`, `ConfirmedState`, `CancelledState`). [cite_start]Randevunun yaşam döngüsü bu durumlar üzerinden yönetilir. [cite: 10]
 
 ### 2. Ekstra Desenler (Bonus)
 * **Facade Pattern:** `HospitalFacade` sınıfında kullanılmıştır. Karmaşık alt sistemleri (Auth, Appointment, Doctor servisleri) tek bir arayüz arkasında toplayarak kullanımı basitleştirir.
 * **Builder Pattern:** `AppointmentBuilder` sınıfında kullanılmıştır. Karmaşık randevu nesnelerinin adım adım ve okunaklı bir şekilde oluşturulmasını sağlar.
 
 ### 3. Kullanılan Abstract Sınıflar
-* **`BaseEntity`**: Tüm veritabanı varlıklarının (ID, Oluşturulma Tarihi vb.) türediği temel sınıf.
-* **`User`**: `Doctor` ve `Patient` sınıflarının ortak özelliklerini (Ad, Soyad, TC, Şifre) taşıyan soyut sınıf.
+* [cite_start]**`BaseEntity`**: Tüm veritabanı varlıklarının (ID, Oluşturulma Tarihi vb.) türediği temel sınıf. [cite: 13]
+* [cite_start]**`User`**: `Doctor` ve `Patient` sınıflarının ortak özelliklerini (Ad, Soyad, TC, Şifre, İletişim) taşıyan soyut sınıf. [cite: 13]
 
 ---
 
@@ -77,23 +87,12 @@ Proje, **S.O.L.I.D** prensiplerine uygun olarak geliştirilmiş ve aşağıdaki 
 
 ---
 
-## 📊 Diyagramlar
-
-*(Rapor dosyasında detaylı olarak sunulmuştur)*
-
-1.  **Use-Case Diyagramı:** Hasta ve Doktor aktörlerinin sistemdeki yeteneklerini gösterir.
-2.  **ER Diyagramı:** `users`, `appointments` ve `doctor_availability` tabloları arasındaki ilişkileri gösterir.
-3.  **Class Diyagramı:** Sınıflar arası hiyerarşiyi ve ilişkileri gösterir.
-4.  **Sequence Diyagramı:** "Randevu Alma" işleminin adım adım akışını gösterir.
-
----
-
 ## 👥 Test Kullanıcıları
 
 **Doktor Girişi:**
-* TC: `11`
-* Şifre: `1234`
+* **TC:** `11`
+* **Şifre:** `1234`
 
 **Hasta Girişi:**
-* TC: `21`
-* Şifre: `1234`
+* **TC:** `21`
+* **Şifre:** `1234`
