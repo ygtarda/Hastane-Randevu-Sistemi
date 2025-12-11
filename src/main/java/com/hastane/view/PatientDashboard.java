@@ -28,24 +28,29 @@ public class PatientDashboard extends JFrame {
     private AuthService authService;
 
     // UI Bileşenleri
-    private JTable tableRandevular; // Aktif randevular
-    private DefaultTableModel tableModel;
+    private JTable tableRandevular; // Aktif randevular tablosu
+    private DefaultTableModel tableModel; // Aktif model
 
-    private JTable tableGecmis; // Geçmiş randevular
+    // YENİ: Geçmiş Randevular Tablosu ve Modeli
+    private JTable tableGecmis;
     private DefaultTableModel modelGecmis;
 
     // Filtreleme
-    private DatePicker dpBaslangic, dpBitis;
+    private DatePicker dpBaslangic;
+    private DatePicker dpBitis;
     private JTextField txtSearch;
 
-    // Randevu Alma
+    // Randevu Alma Kısmı
     private JComboBox<String> cmbBrans;
     private JComboBox<Doctor> cmbDoktorlar;
     private JComboBox<String> cmbSaat;
     private DatePicker datePicker;
 
-    // Profil
-    private JTextField txtAd, txtSoyad, txtTel, txtEmail;
+    // Profil Kısmı
+    private JTextField txtAd;
+    private JTextField txtSoyad;
+    private JTextField txtTel;
+    private JTextField txtEmail;
     private JPasswordField txtSifre;
 
     public PatientDashboard(Patient patient) {
@@ -88,9 +93,16 @@ public class PatientDashboard extends JFrame {
         tabbedPane.setFont(new Font("Segoe UI", Font.PLAIN, 14));
         tabbedPane.setBorder(new EmptyBorder(10, 10, 10, 10));
 
-        tabbedPane.addTab("Randevularım (Aktif)", createRandevularPanel());
+        // 1. Sekme: Aktif Randevular (İsim güncellendi)
+        tabbedPane.addTab("Aktif Randevularım", createRandevularPanel());
+
+        // 2. Sekme: GEÇMİŞ RANDEVULAR (YENİ EKLENDİ)
         tabbedPane.addTab("Geçmiş Randevular", createGecmisRandevularPanel());
+
+        // 3. Sekme: Yeni Randevu Al
         tabbedPane.addTab("Yeni Randevu Al", createRandevuAlPanel());
+
+        // 4. Sekme: Profil
         tabbedPane.addTab("Profil Ayarları", createProfilPanel());
 
         mainPanel.add(tabbedPane, BorderLayout.CENTER);
@@ -99,35 +111,18 @@ public class PatientDashboard extends JFrame {
     }
 
     // ==========================================
-    // 1. SEKME: AKTİF RANDEVULAR (GÜNLÜK/HAFTALIK EKLENDİ)
+    // 1. SEKME: AKTİF RANDEVULARIM LİSTESİ
     // ==========================================
     private JPanel createRandevularPanel() {
         JPanel panel = new JPanel(new BorderLayout(10, 10));
 
         // --- Arama ve Filtreleme Barı ---
         JPanel filterBar = new JPanel(new FlowLayout(FlowLayout.LEFT));
-        filterBar.setBorder(BorderFactory.createTitledBorder("Takvim ve Arama"));
+        filterBar.setBorder(BorderFactory.createTitledBorder("Arama ve Filtreleme"));
 
-        // YENİ: Günlük ve Haftalık Butonları
-        JButton btnBugun = new JButton("GÜNLÜK");
-        btnBugun.addActionListener(e -> {
-            dpBaslangic.setDateToToday();
-            dpBitis.setDateToToday();
-            loadAktifRandevular();
-        });
-        filterBar.add(btnBugun);
-
-        JButton btnHaftalik = new JButton("HAFTALIK");
-        btnHaftalik.addActionListener(e -> {
-            dpBaslangic.setDate(LocalDate.now());
-            dpBitis.setDate(LocalDate.now().plusDays(7));
-            loadAktifRandevular();
-        });
-        filterBar.add(btnHaftalik);
-
-        filterBar.add(new JLabel("| Tarih:"));
+        filterBar.add(new JLabel("Tarih Aralığı:"));
         dpBaslangic = new DatePicker();
-        dpBaslangic.setDate(LocalDate.now()); // Varsayılan bugün
+        dpBaslangic.setDate(LocalDate.now()); // Aktifler bugünden başlar
         filterBar.add(dpBaslangic);
 
         filterBar.add(new JLabel("-"));
@@ -135,22 +130,13 @@ public class PatientDashboard extends JFrame {
         dpBitis.setDate(LocalDate.now().plusMonths(6));
         filterBar.add(dpBitis);
 
-        filterBar.add(new JLabel(" Ara:"));
-        txtSearch = new JTextField(12);
+        filterBar.add(new JLabel("  Ara (Doktor/Branş):"));
+        txtSearch = new JTextField(15);
         filterBar.add(txtSearch);
 
-        JButton btnAra = new JButton("Uygula");
-        btnAra.addActionListener(e -> loadAktifRandevular());
+        JButton btnAra = new JButton("Filtrele");
+        btnAra.addActionListener(e -> loadAktifRandevular()); // Metod değişti
         filterBar.add(btnAra);
-
-        JButton btnTumu = new JButton("Tümü");
-        btnTumu.addActionListener(e -> {
-            dpBaslangic.setDate(LocalDate.now()); // Aktif olduğu için bugünden başlasın
-            dpBitis.setDate(null); // Sonsuza kadar
-            txtSearch.setText("");
-            loadAktifRandevular();
-        });
-        filterBar.add(btnTumu);
 
         panel.add(filterBar, BorderLayout.NORTH);
 
@@ -161,7 +147,7 @@ public class PatientDashboard extends JFrame {
         };
 
         tableRandevular = new JTable(tableModel);
-        styleTable(tableRandevular);
+        styleTable(tableRandevular); // Stil uygulandı
 
         loadAktifRandevular(); // İlk yükleme
         panel.add(new JScrollPane(tableRandevular), BorderLayout.CENTER);
@@ -169,7 +155,7 @@ public class PatientDashboard extends JFrame {
         // --- Alt Butonlar ---
         JPanel btnPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT));
 
-        JButton btnGuncelle = new JButton("Tarihi Değiştir");
+        JButton btnGuncelle = new JButton("Randevu Tarihini Değiştir");
         btnGuncelle.setBackground(new Color(255, 193, 7)); // Sarı
         btnGuncelle.setForeground(Color.BLACK);
         btnGuncelle.addActionListener(e -> randevuGuncelleDialog());
@@ -179,6 +165,7 @@ public class PatientDashboard extends JFrame {
         btnIptal.setForeground(Color.WHITE);
         btnIptal.addActionListener(e -> durumDegistir("İPTAL EDİLDİ"));
 
+        // Yenile Butonu
         JButton btnYenile = new JButton("Listeyi Yenile");
         btnYenile.addActionListener(e -> { loadAktifRandevular(); loadGecmisRandevular(); });
         btnPanel.add(btnYenile);
@@ -191,7 +178,7 @@ public class PatientDashboard extends JFrame {
     }
 
     // ==========================================
-    // 2. SEKME: GEÇMİŞ RANDEVULAR
+    // 2. SEKME: GEÇMİŞ RANDEVULAR (YENİ PANEL)
     // ==========================================
     private JPanel createGecmisRandevularPanel() {
         JPanel panel = new JPanel(new BorderLayout(10, 10));
@@ -359,6 +346,7 @@ public class PatientDashboard extends JFrame {
         return lbl;
     }
 
+    // Tablo Stili (Yardımcı Metot)
     private void styleTable(JTable table) {
         table.setRowHeight(35);
         table.setFont(new Font("Segoe UI", Font.PLAIN, 14));
@@ -367,45 +355,23 @@ public class PatientDashboard extends JFrame {
         try { table.getColumnModel().getColumn(5).setCellRenderer(new StatusCellRenderer()); } catch (Exception e) {}
     }
 
-    // AKTİF LİSTEYİ DOLDUR (FİLTRELİ)
+    // AKTİF LİSTEYİ DOLDUR (YENİ)
     private void loadAktifRandevular() {
         tableModel.setRowCount(0);
-
-        LocalDate bas = (dpBaslangic != null) ? dpBaslangic.getDate() : LocalDate.now();
-        LocalDate bit = (dpBitis != null) ? dpBitis.getDate() : null;
-        String arama = txtSearch.getText();
-
-        // Servisten tüm aralığı çek
-        List<Appointment> tumList = appointmentService.aramaVeFiltrele(loggedInPatient.getId(), bas, bit, arama, false);
-
-        // Java tarafında "Aktif" kriterine göre süz (Gelecek + İptal Edilmemiş)
-        for (Appointment a : tumList) {
-            boolean isFuture = a.getTarih().toLocalDate().isAfter(LocalDate.now().minusDays(1)); // Bugünü de dahil et
-            boolean isNotCancelled = !a.getDurum().equals("İPTAL EDİLDİ") && !a.getDurum().equals("GELMEDİ") && !a.getDurum().equals("TAMAMLANDI");
-
-            if (isFuture && isNotCancelled) {
-                tableModel.addRow(new Object[]{
-                        a.getId(), a.getDoktorAdi(), a.getDoktorBrans(), a.getTarih().toLocalDate(), a.getTarih().toLocalTime(), a.getDurum(), a.getNotlar()
-                });
-            }
+        for (Appointment a : appointmentService.getAktifRandevular(loggedInPatient.getId())) {
+            tableModel.addRow(new Object[]{
+                    a.getId(), a.getDoktorAdi(), a.getDoktorBrans(), a.getTarih().toLocalDate(), a.getTarih().toLocalTime(), a.getDurum(), a.getNotlar()
+            });
         }
     }
 
-    // GEÇMİŞ LİSTEYİ DOLDUR
+    // GEÇMİŞ LİSTEYİ DOLDUR (YENİ)
     private void loadGecmisRandevular() {
         modelGecmis.setRowCount(0);
-        // Servisten tüm veriyi çek, Java'da süz
-        List<Appointment> tumList = appointmentService.aramaVeFiltrele(loggedInPatient.getId(), null, null, "", false);
-
-        for (Appointment a : tumList) {
-            boolean isPast = a.getTarih().toLocalDate().isBefore(LocalDate.now());
-            boolean isFinished = a.getDurum().equals("İPTAL EDİLDİ") || a.getDurum().equals("GELMEDİ") || a.getDurum().equals("TAMAMLANDI");
-
-            if (isPast || isFinished) {
-                modelGecmis.addRow(new Object[]{
-                        a.getId(), a.getDoktorAdi(), a.getDoktorBrans(), a.getTarih().toLocalDate(), a.getTarih().toLocalTime(), a.getDurum(), a.getNotlar()
-                });
-            }
+        for (Appointment a : appointmentService.getGecmisRandevular(loggedInPatient.getId())) {
+            modelGecmis.addRow(new Object[]{
+                    a.getId(), a.getDoktorAdi(), a.getDoktorBrans(), a.getTarih().toLocalDate(), a.getTarih().toLocalTime(), a.getDurum(), a.getNotlar()
+            });
         }
     }
 
@@ -421,6 +387,7 @@ public class PatientDashboard extends JFrame {
             return;
         }
 
+        // Doktorun çalışma saatlerini çek
         String gun = tarih.getDayOfWeek().toString();
         String[] saatler = doctorService.getCalismaSaatleri(doc.getId(), gun);
 
@@ -431,6 +398,7 @@ public class PatientDashboard extends JFrame {
         LocalTime start = LocalTime.parse(saatler[0]);
         LocalTime end = LocalTime.parse(saatler[1]);
 
+        // Dolu saatleri çek
         List<String> doluSaatler = appointmentService.getDoluSaatler(doc.getId(), tarih.toString());
 
         while (start.isBefore(end)) {
@@ -533,7 +501,7 @@ public class PatientDashboard extends JFrame {
                 if(appointmentService.randevuGuncelle(randevuId, yeniTarih)) {
                     JOptionPane.showMessageDialog(dialog, "Randevu güncellendi!");
                     dialog.dispose();
-                    loadAktifRandevular();
+                    loadAktifRandevular(); // Tabloyu yenile
                 } else {
                     JOptionPane.showMessageDialog(dialog, "Hata oluştu.");
                 }
@@ -560,7 +528,7 @@ public class PatientDashboard extends JFrame {
                 JOptionPane.showMessageDialog(this, "Randevu iptal edildi ve 'Geçmiş' sekmesine taşındı.");
                 loadAktifRandevular(); // Aktiften sil
                 loadGecmisRandevular(); // Geçmişe ekle
-                saatleriGuncelle(); // Combo yenilensin
+                saatleriGuncelle(); // Saat boşa çıktı, combo'yu yenile
             }
         } else {
             JOptionPane.showMessageDialog(this, "İptal edilecek randevuyu seçiniz.");

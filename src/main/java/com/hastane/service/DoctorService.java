@@ -8,8 +8,7 @@ import java.util.List;
 
 public class DoctorService {
 
-    // --- MEVCUT METODLARIN (KORUNDU) ---
-
+    // --- MEVCUT METODLAR (KORUNDU) ---
     public List<String> getTumBranslar() {
         List<String> branslar = new ArrayList<>();
         String sql = "SELECT DISTINCT brans FROM users WHERE rol = 'DOKTOR' AND brans IS NOT NULL";
@@ -41,34 +40,37 @@ public class DoctorService {
     }
 
     public List<Doctor> tumDoktorlariGetir() {
-        return getDoktorlarByBrans("Kardiyoloji"); // Örnek fallback
+        return getDoktorlarByBrans("Kardiyoloji");
     }
 
-    // --- YENİ EKLENEN ÖZELLİKLER (ÇALIŞMA SAATLERİ) ---
+    // --- ÇALIŞMA SAATİ İŞLEMLERİ ---
 
-    // 1. Çalışma Saati Ekle / Güncelle
     public boolean calismaSaatiEkle(int doktorId, String gun, String baslangic, String bitis) {
-        // Önce o gün için eski kaydı silelim (Temiz kayıt)
-        String delSql = "DELETE FROM doctor_availability WHERE doctor_id = ? AND gun = ?";
-        String insSql = "INSERT INTO doctor_availability (doctor_id, gun, baslangic, bitis) VALUES (?, ?, ?, ?)";
+        // Önce temizle, sonra ekle (Güncelleme mantığı)
+        calismaSaatiSil(doktorId, gun);
 
-        try (Connection conn = DatabaseConnection.getInstance().getConnection()) {
-            try (PreparedStatement delStmt = conn.prepareStatement(delSql)) {
-                delStmt.setInt(1, doktorId);
-                delStmt.setString(2, gun);
-                delStmt.executeUpdate();
-            }
-            try (PreparedStatement insStmt = conn.prepareStatement(insSql)) {
-                insStmt.setInt(1, doktorId);
-                insStmt.setString(2, gun);
-                insStmt.setString(3, baslangic);
-                insStmt.setString(4, bitis);
-                return insStmt.executeUpdate() > 0;
-            }
+        String insSql = "INSERT INTO doctor_availability (doctor_id, gun, baslangic, bitis) VALUES (?, ?, ?, ?)";
+        try (Connection conn = DatabaseConnection.getInstance().getConnection();
+             PreparedStatement insStmt = conn.prepareStatement(insSql)) {
+            insStmt.setInt(1, doktorId);
+            insStmt.setString(2, gun);
+            insStmt.setString(3, baslangic);
+            insStmt.setString(4, bitis);
+            return insStmt.executeUpdate() > 0;
         } catch (SQLException e) { e.printStackTrace(); return false; }
     }
 
-    // 2. Doktorun O Günkü Çalışma Saatlerini Getir
+    // YENİ: Çalışma Saati Silme (Doktor o gün çalışmıyorsa)
+    public boolean calismaSaatiSil(int doktorId, String gun) {
+        String delSql = "DELETE FROM doctor_availability WHERE doctor_id = ? AND gun = ?";
+        try (Connection conn = DatabaseConnection.getInstance().getConnection();
+             PreparedStatement delStmt = conn.prepareStatement(delSql)) {
+            delStmt.setInt(1, doktorId);
+            delStmt.setString(2, gun);
+            return delStmt.executeUpdate() > 0;
+        } catch (SQLException e) { e.printStackTrace(); return false; }
+    }
+
     public String[] getCalismaSaatleri(int doktorId, String gun) {
         String sql = "SELECT baslangic, bitis FROM doctor_availability WHERE doctor_id = ? AND gun = ?";
         try (Connection conn = DatabaseConnection.getInstance().getConnection();
@@ -80,6 +82,32 @@ public class DoctorService {
                 return new String[] { rs.getString("baslangic"), rs.getString("bitis") };
             }
         } catch (SQLException e) { e.printStackTrace(); }
-        return null; // Ayar yoksa o gün çalışmıyor demektir
+        return null; // Kayıt yoksa null döner (Bu sayede çalışmadığı anlaşılır)
+    }
+
+    public List<String[]> getTumCalismaSaatleriTablosu(int doktorId) {
+        List<String[]> list = new ArrayList<>();
+        String sql = "SELECT gun, baslangic, bitis FROM doctor_availability WHERE doctor_id = ? " +
+                "ORDER BY FIELD(gun, 'MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY', 'SATURDAY', 'SUNDAY')";
+        try (Connection conn = DatabaseConnection.getInstance().getConnection();
+             PreparedStatement stmt = conn.prepareStatement(sql)) {
+            stmt.setInt(1, doktorId);
+            ResultSet rs = stmt.executeQuery();
+            while (rs.next()) {
+                String gunIng = rs.getString("gun");
+                String gunTr = gunIng;
+                switch(gunIng) {
+                    case "MONDAY": gunTr = "Pazartesi"; break;
+                    case "TUESDAY": gunTr = "Salı"; break;
+                    case "WEDNESDAY": gunTr = "Çarşamba"; break;
+                    case "THURSDAY": gunTr = "Perşembe"; break;
+                    case "FRIDAY": gunTr = "Cuma"; break;
+                    case "SATURDAY": gunTr = "Cumartesi"; break;
+                    case "SUNDAY": gunTr = "Pazar"; break;
+                }
+                list.add(new String[]{gunTr, rs.getString("baslangic"), rs.getString("bitis")});
+            }
+        } catch (SQLException e) { e.printStackTrace(); }
+        return list;
     }
 }
