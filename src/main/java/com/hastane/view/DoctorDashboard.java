@@ -137,24 +137,69 @@ public class DoctorDashboard extends JFrame {
         return panel;
     }
 
-    // --- SEKME 2: İPTAL EDİLENLER (YENİ SEKME) ---
+    // ... Diğer metodlar ...
+
+    // --- SEKME 2: İPTAL EDİLENLER (GÜNCELLENDİ: TEMİZLEME BUTONU EKLENDİ) ---
     private JPanel createIptalPanel() {
         JPanel panel = new JPanel(new BorderLayout(10, 10));
         panel.setBorder(BorderFactory.createTitledBorder("İptal Edilen ve Gelmeyen Hastalar"));
 
         String[] cols = {"ID", "Hasta Adı", "Tarih", "Saat", "Durum", "Notlar"};
-        modelIptal = new DefaultTableModel(cols, 0) { @Override public boolean isCellEditable(int r, int c) { return false; } };
+        modelIptal = new DefaultTableModel(cols, 0) {
+            @Override public boolean isCellEditable(int r, int c) { return false; }
+        };
+
         tableIptal = new JTable(modelIptal);
         styleTable(tableIptal);
 
         loadIptalList();
         panel.add(new JScrollPane(tableIptal), BorderLayout.CENTER);
 
+        // --- BUTON PANELİ ---
+        JPanel btnPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT));
+
         JButton btnYenile = new JButton("Listeyi Yenile");
         btnYenile.addActionListener(e -> loadIptalList());
-        panel.add(btnYenile, BorderLayout.SOUTH);
+
+        // YENİ BUTON: SİL
+        JButton btnSil = new JButton("Kaydı Temizle (Sil)");
+        btnSil.setBackground(new Color(220, 53, 69)); // Kırmızı
+        btnSil.setForeground(Color.WHITE);
+        btnSil.addActionListener(e -> randevuSilIslemi());
+
+        btnPanel.add(btnYenile);
+        btnPanel.add(btnSil);
+
+        panel.add(btnPanel, BorderLayout.SOUTH);
 
         return panel;
+    }
+
+    // YENİ YARDIMCI METOT: DOKTOR İÇİN SİLME MANTIĞI
+    private void randevuSilIslemi() {
+        int selectedRow = tableIptal.getSelectedRow(); // İptal tablosundan seçim alıyoruz
+        if (selectedRow == -1) {
+            JOptionPane.showMessageDialog(this, "Lütfen silinecek bir kayıt seçin.");
+            return;
+        }
+
+        int id = (int) modelIptal.getValueAt(selectedRow, 0);
+
+        int secim = JOptionPane.showConfirmDialog(this,
+                "Bu kayıt listeden ve veritabanından kalıcı olarak silinecek.\nOnaylıyor musunuz?",
+                "Kayıt Temizleme",
+                JOptionPane.YES_NO_OPTION,
+                JOptionPane.WARNING_MESSAGE);
+
+        if (secim == JOptionPane.YES_OPTION) {
+            // AppointmentService'e eklediğimiz metodu kullanıyoruz
+            if (appointmentService.randevuSil(id)) {
+                JOptionPane.showMessageDialog(this, "Kayıt başarıyla silindi.");
+                loadIptalList(); // Listeyi yenile
+            } else {
+                JOptionPane.showMessageDialog(this, "İşlem başarısız oldu.");
+            }
+        }
     }
 
     // --- SEKME 3: ÇALIŞMA SAATLERİ (YENİ TABLO GÖRÜNÜMÜ) ---
@@ -209,16 +254,130 @@ public class DoctorDashboard extends JFrame {
         return panel;
     }
 
+    // ==========================================
+    // 4. SEKME: PROFİL (MODERN TASARIM - GÜNCELLENDİ)
+    // ==========================================
     private JPanel createProfilPanel() {
-        JPanel panel = new JPanel(new GridLayout(7, 2, 20, 20));
-        panel.setBorder(new EmptyBorder(50, 150, 50, 150));
-        panel.add(new JLabel("Ad:")); txtAd = new JTextField(loggedInDoctor.getAd()); panel.add(txtAd);
-        panel.add(new JLabel("Soyad:")); txtSoyad = new JTextField(loggedInDoctor.getSoyad()); panel.add(txtSoyad);
-        panel.add(new JLabel("Tel:")); txtTel = new JTextField(loggedInDoctor.getTelefon()); panel.add(txtTel);
-        panel.add(new JLabel("Email:")); txtEmail = new JTextField(loggedInDoctor.getEmail()); panel.add(txtEmail);
-        panel.add(new JLabel("Yeni Şifre:")); txtSifre = new JPasswordField(); panel.add(txtSifre);
-        JButton btn = new JButton("Güncelle"); btn.addActionListener(e -> profilGuncelle()); panel.add(btn);
-        return panel;
+        // Ana taşıyıcı
+        JPanel mainWrapper = new JPanel(new GridBagLayout());
+        mainWrapper.setBackground(new Color(245, 245, 245));
+
+        // Form Paneli
+        JPanel formPanel = new JPanel(new GridBagLayout());
+        formPanel.setBackground(Color.WHITE);
+        formPanel.setBorder(BorderFactory.createCompoundBorder(
+                BorderFactory.createLineBorder(new Color(200, 200, 200), 1),
+                new EmptyBorder(30, 40, 30, 40)
+        ));
+
+        GridBagConstraints gbc = new GridBagConstraints();
+        gbc.insets = new Insets(10, 10, 10, 10);
+        gbc.fill = GridBagConstraints.HORIZONTAL;
+
+        // --- Başlık ---
+        gbc.gridx = 0; gbc.gridy = 0; gbc.gridwidth = 2;
+        JLabel lblHeader = new JLabel("Doktor Profil Ayarları");
+        lblHeader.setFont(new Font("Segoe UI", Font.BOLD, 20));
+        lblHeader.setForeground(new Color(0, 150, 136)); // Doktor temasına uygun yeşil ton
+        lblHeader.setHorizontalAlignment(SwingConstants.CENTER);
+        formPanel.add(lblHeader, gbc);
+
+        // Ayırıcı
+        gbc.gridy = 1;
+        JSeparator sep = new JSeparator();
+        sep.setPreferredSize(new Dimension(300, 1));
+        formPanel.add(sep, gbc);
+
+        gbc.gridwidth = 1;
+        int y = 2;
+
+        // TC (Salt Okunur)
+        gbc.gridx = 0; gbc.gridy = y; gbc.anchor = GridBagConstraints.EAST;
+        formPanel.add(createLabel("TC Kimlik No:"), gbc);
+        gbc.gridx = 1; gbc.anchor = GridBagConstraints.WEST;
+        JTextField txtTcInfo = new JTextField(loggedInDoctor.getTcKimlikNo());
+        txtTcInfo.setEditable(false);
+        txtTcInfo.setBackground(new Color(240, 240, 240));
+        txtTcInfo.setPreferredSize(new Dimension(250, 35));
+        formPanel.add(txtTcInfo, gbc);
+        y++;
+
+        // Ad
+        addFormRow(formPanel, "Ad:", txtAd = new JTextField(loggedInDoctor.getAd()), y++, gbc);
+
+        // Soyad
+        addFormRow(formPanel, "Soyad:", txtSoyad = new JTextField(loggedInDoctor.getSoyad()), y++, gbc);
+
+        // Branş (Salt Okunur - Bilgi Amaçlı)
+        gbc.gridx = 0; gbc.gridy = y; gbc.anchor = GridBagConstraints.EAST;
+        formPanel.add(createLabel("Branş:"), gbc);
+        gbc.gridx = 1; gbc.anchor = GridBagConstraints.WEST;
+        JTextField txtBrans = new JTextField(loggedInDoctor.getBrans());
+        txtBrans.setEditable(false);
+        txtBrans.setBackground(new Color(240, 240, 240));
+        txtBrans.setPreferredSize(new Dimension(250, 35));
+        formPanel.add(txtBrans, gbc);
+        y++;
+
+        // Telefon
+        addFormRow(formPanel, "Telefon:", txtTel = new JTextField(loggedInDoctor.getTelefon()), y++, gbc);
+
+        // Email
+        addFormRow(formPanel, "E-Mail:", txtEmail = new JTextField(loggedInDoctor.getEmail()), y++, gbc);
+
+        // Şifre
+        gbc.gridx = 0; gbc.gridy = y; gbc.anchor = GridBagConstraints.EAST;
+        formPanel.add(createLabel("Yeni Şifre:"), gbc);
+        gbc.gridx = 1; gbc.anchor = GridBagConstraints.WEST;
+        txtSifre = new JPasswordField();
+        txtSifre.setPreferredSize(new Dimension(250, 35));
+        formPanel.add(txtSifre, gbc);
+        y++;
+
+        // Not
+        gbc.gridx = 1; gbc.gridy = y++;
+        JLabel lblNote = new JLabel("(Değişmeyecekse boş bırakın)");
+        lblNote.setFont(new Font("Segoe UI", Font.ITALIC, 11));
+        lblNote.setForeground(Color.GRAY);
+        formPanel.add(lblNote, gbc);
+
+        // --- Buton ---
+        gbc.gridx = 0; gbc.gridy = y++; gbc.gridwidth = 2; gbc.fill = GridBagConstraints.NONE;
+        gbc.anchor = GridBagConstraints.CENTER;
+        gbc.insets = new Insets(20, 0, 0, 0);
+
+        JButton btnGuncelle = new JButton("BİLGİLERİ GÜNCELLE");
+        btnGuncelle.setFont(new Font("Segoe UI", Font.BOLD, 14));
+        btnGuncelle.setBackground(new Color(0, 150, 136)); // Yeşil
+        btnGuncelle.setForeground(Color.WHITE);
+        btnGuncelle.setPreferredSize(new Dimension(250, 40));
+        btnGuncelle.setFocusPainted(false);
+        btnGuncelle.addActionListener(e -> profilGuncelle());
+
+        formPanel.add(btnGuncelle, gbc);
+
+        mainWrapper.add(formPanel);
+        return mainWrapper;
+    }
+
+    // Yardımcı Metot
+    private void addFormRow(JPanel panel, String labelText, JTextField field, int y, GridBagConstraints gbc) {
+        gbc.gridx = 0; gbc.gridy = y;
+        gbc.anchor = GridBagConstraints.EAST;
+        panel.add(new JLabel(labelText), gbc); // JLabel fontunu panel fontundan alabilir veya createLabel kullan
+
+        gbc.gridx = 1;
+        gbc.anchor = GridBagConstraints.WEST;
+        field.setPreferredSize(new Dimension(250, 35));
+        panel.add(field, gbc);
+    }
+
+    // createLabel metodu DoctorDashboard sınıfında yoksa ekle:
+    private JLabel createLabel(String text) {
+        JLabel lbl = new JLabel(text);
+        lbl.setFont(new Font("Segoe UI", Font.BOLD, 14));
+        lbl.setForeground(new Color(80, 80, 80));
+        return lbl;
     }
 
     // --- YARDIMCILAR VE MANTIK ---

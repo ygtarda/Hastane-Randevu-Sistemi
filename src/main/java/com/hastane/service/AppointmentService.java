@@ -5,6 +5,11 @@ import com.hastane.model.Appointment;
 import com.hastane.observer.ConsoleLoggerObserver;
 import com.hastane.observer.INotificationObserver;
 
+// --- EKLENEN IMPORTLAR ---
+import com.hastane.state.IAppointmentState;
+import com.hastane.state.StateFactory;
+// -------------------------
+
 import java.sql.*;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -40,7 +45,7 @@ public class AppointmentService {
         } catch (SQLException e) { e.printStackTrace(); return false; }
     }
 
-    // 2. Randevu Güncelleme
+    // 2. Randevu Güncelleme (Tarih Değişimi)
     public boolean randevuGuncelle(int randevuId, LocalDateTime yeniTarih) {
         Appointment mevcut = getAppointmentById(randevuId);
         if (mevcut == null) return false;
@@ -58,7 +63,51 @@ public class AppointmentService {
         } catch (SQLException e) { e.printStackTrace(); return false; }
     }
 
-    // 3. Arama ve Filtreleme
+    // 3. Randevu Durum Güncelleme (STATE PATTERN ENTEGRE EDİLDİ)
+    public boolean randevuDurumGuncelle(int randevuId, String yeniDurumString) {
+        // 1. Randevuyu bul
+        Appointment appointment = getAppointmentById(randevuId);
+        if (appointment == null) return false;
+
+        // 2. String isteği State nesnesine çevir (Factory ile)
+        IAppointmentState yeniState = StateFactory.getStateByString(yeniDurumString);
+
+        // 3. Nesnenin durumunu değiştir (Logic burada çalışır)
+        appointment.changeState(yeniState);
+
+        // 4. Veritabanına yeni durumu yaz
+        String sql = "UPDATE appointments SET durum = ? WHERE id = ?";
+        try (Connection conn = DatabaseConnection.getInstance().getConnection();
+             PreparedStatement stmt = conn.prepareStatement(sql)) {
+
+            // State nesnesinden gelen ismi DB'ye yazıyoruz
+            stmt.setString(1, appointment.getState().getDurumAdi());
+            stmt.setInt(2, randevuId);
+
+            boolean sonuc = stmt.executeUpdate() > 0;
+            if (sonuc) notifyObservers("Durum güncellendi (" + yeniDurumString + "): ID " + randevuId);
+            return sonuc;
+        } catch (SQLException e) {
+            e.printStackTrace();
+            return false;
+        }
+    }
+
+    public boolean randevuSil(int randevuId) {
+        String sql = "DELETE FROM appointments WHERE id = ?";
+        try (Connection conn = DatabaseConnection.getInstance().getConnection();
+             PreparedStatement stmt = conn.prepareStatement(sql)) {
+            stmt.setInt(1, randevuId);
+            boolean sonuc = stmt.executeUpdate() > 0;
+            if (sonuc) notifyObservers("Randevu kaydı silindi ID: " + randevuId);
+            return sonuc;
+        } catch (SQLException e) {
+            e.printStackTrace();
+            return false;
+        }
+    }
+
+    // 4. Arama ve Filtreleme
     public List<Appointment> aramaVeFiltrele(int userId, LocalDate baslangic, LocalDate bitis, String aramaMetni, boolean isDoctor) {
         List<Appointment> liste = new ArrayList<>();
         StringBuilder sql = new StringBuilder();
@@ -115,7 +164,7 @@ public class AppointmentService {
         return liste;
     }
 
-    // --- YENİ EKLENEN METODLAR (HATA ALDIĞIN KISIM) ---
+    // --- ÖZEL SORGU METODLARI ---
 
     // HASTA İÇİN: Aktif Randevular
     public List<Appointment> getAktifRandevular(int hastaId) {
@@ -179,7 +228,7 @@ public class AppointmentService {
         return liste;
     }
 
-    // --- YARDIMCI METOTLAR ---
+
 
     public List<String> getDoluSaatler(int doktorId, String tarihGun) {
         List<String> doluSaatler = new ArrayList<>();
@@ -192,18 +241,6 @@ public class AppointmentService {
             while (rs.next()) { doluSaatler.add(rs.getString("saat")); }
         } catch (SQLException e) { e.printStackTrace(); }
         return doluSaatler;
-    }
-
-    public boolean randevuDurumGuncelle(int randevuId, String yeniDurum) {
-        String sql = "UPDATE appointments SET durum = ? WHERE id = ?";
-        try (Connection conn = DatabaseConnection.getInstance().getConnection();
-             PreparedStatement stmt = conn.prepareStatement(sql)) {
-            stmt.setString(1, yeniDurum);
-            stmt.setInt(2, randevuId);
-            boolean sonuc = stmt.executeUpdate() > 0;
-            if (sonuc) notifyObservers("Durum güncellendi: " + yeniDurum);
-            return sonuc;
-        } catch (SQLException e) { return false; }
     }
 
     public boolean notEkle(int randevuId, String not) {
@@ -246,14 +283,10 @@ public class AppointmentService {
     }
 
     private Appointment mapResultSetToAppointment(ResultSet rs) throws SQLException {
+        // Factory veya Builder burada da kullanılabilir ama temel constructor yeterli
         return new Appointment(
                 rs.getInt("id"), rs.getInt("doktor_id"), rs.getInt("hasta_id"),
                 rs.getTimestamp("tarih").toLocalDateTime(), rs.getString("durum"), rs.getString("notlar")
         );
     }
-
-    // Eski uyumluluk metodları
-    public List<Appointment> getRandevularByTarihAraligi(int userId, LocalDate b, LocalDate s, boolean d) { return aramaVeFiltrele(userId, b, s, "", d); }
-    public List<Appointment> getRandevularByHasta(int id) { return aramaVeFiltrele(id, null, null, "", false); }
-    public List<Appointment> getRandevularByDoktor(int id) { return aramaVeFiltrele(id, null, null, "", true); }
 }

@@ -1,9 +1,14 @@
 package com.hastane.state;
 
+import com.hastane.model.Appointment;
+
 public class CancelledState implements IAppointmentState {
+
     @Override
-    public void handle() {
-        System.out.println("Durum İşleniyor: Randevu iptal edildi. Slot boşa çıktı.");
+    public void handle(Appointment context) {
+        // İptal durumunda yapılacak ekstra işlemler buraya eklenebilir.
+        // Örneğin: Loglama, SMS servisine bildirim tetikleme vb.
+        System.out.println("Durum Değişimi: Randevu İPTAL EDİLDİ. Slot boşa çıktı.");
     }
 
     @Override

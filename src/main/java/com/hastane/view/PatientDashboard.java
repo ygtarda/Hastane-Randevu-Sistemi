@@ -116,27 +116,55 @@ public class PatientDashboard extends JFrame {
     private JPanel createRandevularPanel() {
         JPanel panel = new JPanel(new BorderLayout(10, 10));
 
-        // --- Arama ve Filtreleme Barı ---
+        // --- Arama ve Filtreleme Barı (Doktor Paneliyle Aynı Yapıya Getirildi) ---
         JPanel filterBar = new JPanel(new FlowLayout(FlowLayout.LEFT));
-        filterBar.setBorder(BorderFactory.createTitledBorder("Arama ve Filtreleme"));
+        filterBar.setBorder(BorderFactory.createTitledBorder("Takvim ve Arama"));
 
-        filterBar.add(new JLabel("Tarih Aralığı:"));
+        // Günlük Butonu
+        JButton btnBugun = new JButton("GÜNLÜK");
+        btnBugun.addActionListener(e -> {
+            dpBaslangic.setDateToToday();
+            dpBitis.setDateToToday();
+            loadAktifRandevular();
+        });
+        filterBar.add(btnBugun);
+
+        // Haftalık Butonu
+        JButton btnHafta = new JButton("HAFTALIK");
+        btnHafta.addActionListener(e -> {
+            dpBaslangic.setDate(LocalDate.now());
+            dpBitis.setDate(LocalDate.now().plusDays(7));
+            loadAktifRandevular();
+        });
+        filterBar.add(btnHafta);
+
+        filterBar.add(new JLabel(" | Tarih:"));
         dpBaslangic = new DatePicker();
-        dpBaslangic.setDate(LocalDate.now()); // Aktifler bugünden başlar
+        // Varsayılan olarak bugünden başlatıyoruz ki eski randevular aktifte görünmesin
+        dpBaslangic.setDate(LocalDate.now());
         filterBar.add(dpBaslangic);
 
-        filterBar.add(new JLabel("-"));
         dpBitis = new DatePicker();
         dpBitis.setDate(LocalDate.now().plusMonths(6));
         filterBar.add(dpBitis);
 
         filterBar.add(new JLabel("  Ara (Doktor/Branş):"));
-        txtSearch = new JTextField(15);
+        txtSearch = new JTextField(12);
         filterBar.add(txtSearch);
 
-        JButton btnAra = new JButton("Filtrele");
-        btnAra.addActionListener(e -> loadAktifRandevular()); // Metod değişti
+        JButton btnAra = new JButton("Uygula");
+        btnAra.addActionListener(e -> loadAktifRandevular());
         filterBar.add(btnAra);
+
+        // Tümünü Göster Butonu
+        JButton btnTumu = new JButton("Tümünü Göster");
+        btnTumu.addActionListener(e -> {
+            dpBaslangic.setDate(null);
+            dpBitis.setDate(null);
+            txtSearch.setText("");
+            loadAktifRandevular();
+        });
+        filterBar.add(btnTumu);
 
         panel.add(filterBar, BorderLayout.NORTH);
 
@@ -177,8 +205,10 @@ public class PatientDashboard extends JFrame {
         return panel;
     }
 
+    // ... Diğer metodlar ...
+
     // ==========================================
-    // 2. SEKME: GEÇMİŞ RANDEVULAR (YENİ PANEL)
+    // 2. SEKME: GEÇMİŞ RANDEVULAR (GÜNCELLENDİ: SİLME BUTONU EKLENDİ)
     // ==========================================
     private JPanel createGecmisRandevularPanel() {
         JPanel panel = new JPanel(new BorderLayout(10, 10));
@@ -194,12 +224,53 @@ public class PatientDashboard extends JFrame {
         loadGecmisRandevular(); // Verileri yükle
         panel.add(new JScrollPane(tableGecmis), BorderLayout.CENTER);
 
+        // --- BUTON PANELİ ---
+        JPanel btnPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT));
+
         JButton btnYenile = new JButton("Listeyi Yenile");
         btnYenile.addActionListener(e -> loadGecmisRandevular());
-        panel.add(btnYenile, BorderLayout.SOUTH);
+
+        // YENİ BUTON: SİL
+        JButton btnSil = new JButton("Seçileni Sil (Temizle)");
+        btnSil.setBackground(new Color(220, 53, 69)); // Kırmızı ton
+        btnSil.setForeground(Color.WHITE);
+        btnSil.addActionListener(e -> randevuSilIslemi());
+
+        btnPanel.add(btnYenile);
+        btnPanel.add(btnSil); // Panele ekledik
+
+        panel.add(btnPanel, BorderLayout.SOUTH);
 
         return panel;
     }
+
+    // YENİ YARDIMCI METOT: SİLME MANTIĞI
+    private void randevuSilIslemi() {
+        int selectedRow = tableGecmis.getSelectedRow();
+        if (selectedRow == -1) {
+            JOptionPane.showMessageDialog(this, "Lütfen listeden silinecek bir kayıt seçin.");
+            return;
+        }
+
+        int id = (int) modelGecmis.getValueAt(selectedRow, 0); // ID'yi al
+
+        // Onay iste
+        int secim = JOptionPane.showConfirmDialog(this,
+                "Bu randevu kaydı kalıcı olarak silinecek.\nEmin misiniz?",
+                "Kayıt Silme",
+                JOptionPane.YES_NO_OPTION,
+                JOptionPane.WARNING_MESSAGE);
+
+        if (secim == JOptionPane.YES_OPTION) {
+            if (appointmentService.randevuSil(id)) {
+                JOptionPane.showMessageDialog(this, "Kayıt başarıyla silindi.");
+                loadGecmisRandevular(); // Tabloyu yenile
+            } else {
+                JOptionPane.showMessageDialog(this, "Silme işlemi başarısız oldu.");
+            }
+        }
+    }
+
 
     // ==========================================
     // 3. SEKME: YENİ RANDEVU ALMA
@@ -294,45 +365,108 @@ public class PatientDashboard extends JFrame {
     }
 
     // ==========================================
-    // 4. SEKME: PROFİL
+    // 4. SEKME: PROFİL (MODERN TASARIM - DÜZELTİLDİ)
     // ==========================================
     private JPanel createProfilPanel() {
-        JPanel panel = new JPanel(new GridLayout(7, 2, 20, 20));
-        panel.setBorder(new EmptyBorder(30, 100, 30, 100));
+        // Ana taşıyıcı (Formu ekranın ortasında tutar)
+        JPanel mainWrapper = new JPanel(new GridBagLayout());
+        mainWrapper.setBackground(new Color(245, 245, 245)); // Hafif gri arka plan
 
-        panel.add(createLabel("TC Kimlik No:"));
-        JTextField txtTc = new JTextField(loggedInPatient.getTcKimlikNo());
-        txtTc.setEditable(false);
-        txtTc.setBackground(new Color(240, 240, 240));
-        panel.add(txtTc);
+        // Formun kendisi (Beyaz kart görünümü)
+        JPanel formPanel = new JPanel(new GridBagLayout());
+        formPanel.setBackground(Color.WHITE);
+        formPanel.setBorder(BorderFactory.createCompoundBorder(
+                BorderFactory.createLineBorder(new Color(200, 200, 200), 1),
+                new EmptyBorder(30, 40, 30, 40) // İç boşluk
+        ));
 
-        panel.add(createLabel("Ad:"));
-        txtAd = new JTextField(loggedInPatient.getAd());
-        panel.add(txtAd);
+        GridBagConstraints gbc = new GridBagConstraints();
+        gbc.insets = new Insets(10, 10, 10, 10); // Bileşenler arası boşluk
+        gbc.fill = GridBagConstraints.HORIZONTAL;
 
-        panel.add(createLabel("Soyad:"));
-        txtSoyad = new JTextField(loggedInPatient.getSoyad());
-        panel.add(txtSoyad);
+        // --- Başlık ---
+        gbc.gridx = 0; gbc.gridy = 0; gbc.gridwidth = 2;
+        JLabel lblHeader = new JLabel("Profil Bilgilerim");
+        lblHeader.setFont(new Font("Segoe UI", Font.BOLD, 20));
+        lblHeader.setForeground(new Color(33, 150, 243));
+        lblHeader.setHorizontalAlignment(SwingConstants.CENTER);
+        formPanel.add(lblHeader, gbc);
 
-        panel.add(createLabel("Telefon:"));
-        txtTel = new JTextField(loggedInPatient.getTelefon());
-        panel.add(txtTel);
+        // Ayırıcı çizgi
+        gbc.gridy = 1;
+        JSeparator sep = new JSeparator();
+        sep.setPreferredSize(new Dimension(300, 1));
+        formPanel.add(sep, gbc);
 
-        panel.add(createLabel("E-Mail:"));
-        txtEmail = new JTextField(loggedInPatient.getEmail());
-        panel.add(txtEmail);
+        // --- Form Alanları ---
+        gbc.gridwidth = 1; // Tekrar normale döndür
+        int y = 2;
 
-        panel.add(createLabel("Yeni Şifre (Boşsa değişmez):"));
+        // DÜZELTME BURADA: txtTc değişkenine atama yapmadan doğrudan yeni nesne oluşturuyoruz.
+        addFormRow(formPanel, "TC Kimlik No:", new JTextField(loggedInPatient.getTcKimlikNo()), y++, false, gbc);
+
+        // Ad
+        addFormRow(formPanel, "Ad:", txtAd = new JTextField(loggedInPatient.getAd()), y++, true, gbc);
+
+        // Soyad
+        addFormRow(formPanel, "Soyad:", txtSoyad = new JTextField(loggedInPatient.getSoyad()), y++, true, gbc);
+
+        // Telefon
+        addFormRow(formPanel, "Telefon:", txtTel = new JTextField(loggedInPatient.getTelefon()), y++, true, gbc);
+
+        // Email
+        addFormRow(formPanel, "E-Mail:", txtEmail = new JTextField(loggedInPatient.getEmail()), y++, true, gbc);
+
+        // Şifre
+        gbc.gridx = 0; gbc.gridy = y;
+        gbc.anchor = GridBagConstraints.EAST;
+        formPanel.add(createLabel("Yeni Şifre:"), gbc);
+
+        gbc.gridx = 1;
+        gbc.anchor = GridBagConstraints.WEST;
         txtSifre = new JPasswordField();
-        panel.add(txtSifre);
+        txtSifre.setPreferredSize(new Dimension(250, 35));
+        formPanel.add(txtSifre, gbc);
+        y++;
 
-        JButton btnGuncelle = new JButton("Bilgilerimi Güncelle");
+        // Şifre Bilgi Notu
+        gbc.gridx = 1; gbc.gridy = y++;
+        JLabel lblNote = new JLabel("(Değiştirmek istemiyorsanız boş bırakın)");
+        lblNote.setFont(new Font("Segoe UI", Font.ITALIC, 11));
+        lblNote.setForeground(Color.GRAY);
+        formPanel.add(lblNote, gbc);
+
+        // --- Buton ---
+        gbc.gridx = 0; gbc.gridy = y++; gbc.gridwidth = 2; gbc.fill = GridBagConstraints.NONE;
+        gbc.anchor = GridBagConstraints.CENTER;
+        gbc.insets = new Insets(20, 0, 0, 0); // Üstten biraz daha boşluk
+
+        JButton btnGuncelle = new JButton("BİLGİLERİ GÜNCELLE");
+        btnGuncelle.setFont(new Font("Segoe UI", Font.BOLD, 14));
         btnGuncelle.setBackground(new Color(33, 150, 243));
         btnGuncelle.setForeground(Color.WHITE);
+        btnGuncelle.setPreferredSize(new Dimension(250, 40));
+        btnGuncelle.setFocusPainted(false);
         btnGuncelle.addActionListener(e -> profilGuncelle());
-        panel.add(btnGuncelle);
 
-        return panel;
+        formPanel.add(btnGuncelle, gbc);
+
+        mainWrapper.add(formPanel);
+        return mainWrapper;
+    }
+
+    // Eğer helper metodu eklemediysen bunu da sınıfın en altına eklemelisin:
+    private void addFormRow(JPanel panel, String labelText, JTextField field, int y, boolean editable, GridBagConstraints gbc) {
+        gbc.gridx = 0; gbc.gridy = y;
+        gbc.anchor = GridBagConstraints.EAST; // Etiket sağa yaslı
+        panel.add(createLabel(labelText), gbc);
+
+        gbc.gridx = 1;
+        gbc.anchor = GridBagConstraints.WEST; // Kutu sola yaslı
+        field.setPreferredSize(new Dimension(250, 35));
+        field.setEditable(editable);
+        if (!editable) field.setBackground(new Color(240, 240, 240));
+        panel.add(field, gbc);
     }
 
     // ==========================================
@@ -355,13 +489,40 @@ public class PatientDashboard extends JFrame {
         try { table.getColumnModel().getColumn(5).setCellRenderer(new StatusCellRenderer()); } catch (Exception e) {}
     }
 
-    // AKTİF LİSTEYİ DOLDUR (YENİ)
+    // AKTİF LİSTEYİ DOLDUR (DÜZENLENDİ)
     private void loadAktifRandevular() {
         tableModel.setRowCount(0);
-        for (Appointment a : appointmentService.getAktifRandevular(loggedInPatient.getId())) {
-            tableModel.addRow(new Object[]{
-                    a.getId(), a.getDoktorAdi(), a.getDoktorBrans(), a.getTarih().toLocalDate(), a.getTarih().toLocalTime(), a.getDurum(), a.getNotlar()
-            });
+
+        // DatePicker'dan değerleri al
+        LocalDate bas = (dpBaslangic != null) ? dpBaslangic.getDate() : null;
+        LocalDate bit = (dpBitis != null) ? dpBitis.getDate() : null;
+
+        // Doktor Dashboard'undaki gibi "aramaVeFiltrele" servisini kullanıyoruz.
+        // false parametresi "isDoctor = false" anlamına geliyor.
+        List<Appointment> list = appointmentService.aramaVeFiltrele(
+                loggedInPatient.getId(),
+                bas,
+                bit,
+                txtSearch.getText(),
+                false
+        );
+
+        for (Appointment a : list) {
+            // Sadece aktif olanları tabloda göster (İptal ve Tamamlananları filtrele)
+            if (!a.getDurum().equals("İPTAL EDİLDİ") &&
+                    !a.getDurum().equals("GELMEDİ") &&
+                    !a.getDurum().equals("TAMAMLANDI")) {
+
+                tableModel.addRow(new Object[]{
+                        a.getId(),
+                        a.getDoktorAdi(),
+                        a.getDoktorBrans(),
+                        a.getTarih().toLocalDate(),
+                        a.getTarih().toLocalTime(),
+                        a.getDurum(),
+                        a.getNotlar()
+                });
+            }
         }
     }
 
