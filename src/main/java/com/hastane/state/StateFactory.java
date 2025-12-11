@@ -10,8 +10,9 @@ public class StateFactory {
             case "TAMAMLANDI":
                 return new CompletedState();
             case "İPTAL EDİLDİ":
-            case "GELMEDİ": // Gelmedi durumu da iptal mantığıyla aynı state olabilir veya ayrı yazılabilir
                 return new CancelledState();
+            case "GELMEDİ":
+                return new MissedState();
             case "BEKLEMEDE":
             default:
                 return new PendingState();
