@@ -11,7 +11,7 @@ Bu proje, **Yazılım Mimarisi ve Tasarımı** dersi kapsamında geliştirilmiş
 | Adı Soyadı | Öğrenci No |
 | :--- | :--- |
 | **Arda Yiğit** | 1230505022 |
-| **Abdullah Altunkaynak** | 1230505028 |
+| **** | 1230505028 |
 
 ---
 
