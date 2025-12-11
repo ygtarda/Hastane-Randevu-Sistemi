@@ -8,7 +8,8 @@ import java.util.List;
 
 public class DoctorService {
 
-    // Tüm branşları getir (Distinct)
+    // --- MEVCUT METODLARIN (KORUNDU) ---
+
     public List<String> getTumBranslar() {
         List<String> branslar = new ArrayList<>();
         String sql = "SELECT DISTINCT brans FROM users WHERE rol = 'DOKTOR' AND brans IS NOT NULL";
@@ -20,7 +21,6 @@ public class DoctorService {
         return branslar;
     }
 
-    // Branşa göre doktorları getir
     public List<Doctor> getDoktorlarByBrans(String brans) {
         List<Doctor> doktorlar = new ArrayList<>();
         String sql = "SELECT * FROM users WHERE rol = 'DOKTOR' AND brans = ?";
@@ -32,7 +32,7 @@ public class DoctorService {
                 Doctor d = new Doctor(rs.getString("tc_kimlik_no"), rs.getString("ad"),
                         rs.getString("soyad"), rs.getString("sifre"), rs.getString("brans"));
                 d.setId(rs.getInt("id"));
-                d.setTelefon(rs.getString("telefon")); // Telefonu da çekelim
+                d.setTelefon(rs.getString("telefon"));
                 d.setEmail(rs.getString("email"));
                 doktorlar.add(d);
             }
@@ -40,17 +40,15 @@ public class DoctorService {
         return doktorlar;
     }
 
-    // Tüm doktorlar (eski metod, uyumluluk için kalsın)
     public List<Doctor> tumDoktorlariGetir() {
-        // ... (Bu metodun içi aynı kalabilir ama genelde branş filtresi kullanacağız)
-        return getDoktorlarByBrans("Kardiyoloji"); // Örnek
+        return getDoktorlarByBrans("Kardiyoloji"); // Örnek fallback
     }
 
-    // DoctorService.java içine ekle:
+    // --- YENİ EKLENEN ÖZELLİKLER (ÇALIŞMA SAATLERİ) ---
 
     // 1. Çalışma Saati Ekle / Güncelle
     public boolean calismaSaatiEkle(int doktorId, String gun, String baslangic, String bitis) {
-        // Önce o gün için eski kaydı silelim (Basitlik için)
+        // Önce o gün için eski kaydı silelim (Temiz kayıt)
         String delSql = "DELETE FROM doctor_availability WHERE doctor_id = ? AND gun = ?";
         String insSql = "INSERT INTO doctor_availability (doctor_id, gun, baslangic, bitis) VALUES (?, ?, ?, ?)";
 
@@ -70,8 +68,7 @@ public class DoctorService {
         } catch (SQLException e) { e.printStackTrace(); return false; }
     }
 
-    // 2. Doktorun O Günkü Çalışma Saatlerini Getir (Yoksa null döner)
-// Dönüş: String[] { "09:00", "12:00" } gibi
+    // 2. Doktorun O Günkü Çalışma Saatlerini Getir
     public String[] getCalismaSaatleri(int doktorId, String gun) {
         String sql = "SELECT baslangic, bitis FROM doctor_availability WHERE doctor_id = ? AND gun = ?";
         try (Connection conn = DatabaseConnection.getInstance().getConnection();
@@ -83,6 +80,6 @@ public class DoctorService {
                 return new String[] { rs.getString("baslangic"), rs.getString("bitis") };
             }
         } catch (SQLException e) { e.printStackTrace(); }
-        return null; // O gün çalışmıyor demek
+        return null; // Ayar yoksa o gün çalışmıyor demektir
     }
 }

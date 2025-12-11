@@ -19,15 +19,10 @@ public class DoctorDashboard extends JFrame {
     private AppointmentService appointmentService;
     private AuthService authService;
     private DoctorService doctorService;
-
     private JTable tableRandevular;
     private DefaultTableModel tableModel;
-
-    // Profil
-    private JTextField txtAd, txtSoyad, txtTel, txtEmail;
+    private JTextField txtSearch, txtAd, txtSoyad, txtTel, txtEmail;
     private JPasswordField txtSifre;
-
-    // Filtre
     private DatePicker dpBaslangic, dpBitis;
 
     public DoctorDashboard(Doctor doctor) {
@@ -39,220 +34,187 @@ public class DoctorDashboard extends JFrame {
     }
 
     private void initUI() {
-        setTitle("Doktor Paneli");
+        setTitle("Doktor Paneli - Dr. " + loggedInDoctor.getAd() + " " + loggedInDoctor.getSoyad());
         setSize(1200, 750);
         setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         setLocationRelativeTo(null);
 
         JPanel mainPanel = new JPanel(new BorderLayout());
-
-        // HEADER
-        JPanel headerPanel = new JPanel(new BorderLayout());
-        headerPanel.setBackground(new Color(0, 150, 136));
-        headerPanel.setBorder(new EmptyBorder(15, 20, 15, 20));
-
+        JPanel header = new JPanel(new BorderLayout());
+        header.setBackground(new Color(0, 150, 136));
+        header.setBorder(new EmptyBorder(15, 20, 15, 20));
         JLabel lblTitle = new JLabel("Dr. " + loggedInDoctor.getAd() + " (" + loggedInDoctor.getBrans() + ")");
-        lblTitle.setFont(new Font("Segoe UI", Font.BOLD, 20));
-        lblTitle.setForeground(Color.WHITE);
-
+        lblTitle.setFont(new Font("Segoe UI", Font.BOLD, 22)); lblTitle.setForeground(Color.WHITE);
         JButton btnCikis = new JButton("Çıkış Yap");
-        btnCikis.addActionListener(e -> { this.dispose(); new LoginScreen(); });
-        headerPanel.add(lblTitle, BorderLayout.WEST);
-        headerPanel.add(btnCikis, BorderLayout.EAST);
-        mainPanel.add(headerPanel, BorderLayout.NORTH);
+        btnCikis.addActionListener(e -> { dispose(); new LoginScreen(); });
+        header.add(lblTitle, BorderLayout.WEST); header.add(btnCikis, BorderLayout.EAST);
+        mainPanel.add(header, BorderLayout.NORTH);
 
-        // SEKMELER
-        JTabbedPane tabbedPane = new JTabbedPane();
-        tabbedPane.setFont(new Font("Segoe UI", Font.PLAIN, 14));
-        tabbedPane.setBorder(new EmptyBorder(10, 10, 10, 10));
+        JTabbedPane tabs = new JTabbedPane();
+        tabs.setFont(new Font("Segoe UI", Font.PLAIN, 14));
+        tabs.setBorder(new EmptyBorder(10,10,10,10));
+        tabs.addTab("Randevu Listesi", createListPanel());
+        tabs.addTab("Çalışma Saatlerim", createHoursPanel());
+        tabs.addTab("Profil Ayarları", createProfilPanel());
 
-        tabbedPane.addTab("Randevu Listesi", createRandevuPanel());
-        tabbedPane.addTab("Çalışma Saatlerim", createCalismaSaatleriPanel()); // YENİ
-        tabbedPane.addTab("Profil Ayarları", createProfilPanel());
-
-        mainPanel.add(tabbedPane, BorderLayout.CENTER);
+        mainPanel.add(tabs, BorderLayout.CENTER);
         add(mainPanel);
         setVisible(true);
     }
 
-    private JPanel createRandevuPanel() {
+    private JPanel createListPanel() {
         JPanel panel = new JPanel(new BorderLayout(10, 10));
+        JPanel filterBar = new JPanel(new FlowLayout(FlowLayout.LEFT));
+        filterBar.setBorder(BorderFactory.createTitledBorder("Takvim ve Arama"));
 
-        // FİLTRE PANELİ (YENİ)
-        JPanel filterPanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
-        filterPanel.setBorder(BorderFactory.createTitledBorder("Tarih Aralığı Sorgula"));
+        // 1. Günlük / Haftalık Butonları (PDF İsteği)
+        JButton btnBugun = new JButton("GÜNLÜK");
+        btnBugun.addActionListener(e -> {
+            dpBaslangic.setDateToToday();
+            dpBitis.setDateToToday();
+            randevulariListele();
+        });
+        filterBar.add(btnBugun);
 
-        filterPanel.add(new JLabel("Başlangıç:"));
-        dpBaslangic = new DatePicker();
-        dpBaslangic.setDateToToday();
-        filterPanel.add(dpBaslangic);
+        JButton btnHaftalik = new JButton("HAFTALIK");
+        btnHaftalik.addActionListener(e -> {
+            dpBaslangic.setDate(LocalDate.now());
+            dpBitis.setDate(LocalDate.now().plusDays(7));
+            randevulariListele();
+        });
+        filterBar.add(btnHaftalik);
 
-        filterPanel.add(new JLabel("Bitiş:"));
-        dpBitis = new DatePicker();
-        dpBitis.setDateToToday(); // Varsayılan bugün
-        filterPanel.add(dpBitis);
+        // 2. Tarih Seçiciler
+        filterBar.add(new JLabel("| Tarih:"));
+        dpBaslangic = new DatePicker(); filterBar.add(dpBaslangic); // Boş başlar
+        dpBitis = new DatePicker(); filterBar.add(dpBitis);
 
-        JButton btnFiltrele = new JButton("Sorgula");
-        btnFiltrele.addActionListener(e -> randevulariListele(true)); // Filtreli getir
-        filterPanel.add(btnFiltrele);
+        // 3. Arama Kutusu
+        filterBar.add(new JLabel("Ara (Hasta/TC):"));
+        txtSearch = new JTextField(12); filterBar.add(txtSearch);
 
+        JButton btnAra = new JButton("Uygula");
+        btnAra.addActionListener(e -> randevulariListele());
+        filterBar.add(btnAra);
+
+        // 4. İptal Edilenleri Göster (PDF İsteği)
+        JButton btnIptaller = new JButton("İptal Edilenler");
+        btnIptaller.setForeground(Color.RED);
+        btnIptaller.addActionListener(e -> {
+            dpBaslangic.setDate(null);
+            dpBitis.setDate(null);
+            txtSearch.setText("İPTAL");
+            randevulariListele();
+        });
+        filterBar.add(btnIptaller);
+
+        // 5. Tümünü Göster
         JButton btnTumu = new JButton("Tümünü Göster");
-        btnTumu.addActionListener(e -> randevulariListele(false));
-        filterPanel.add(btnTumu);
+        btnTumu.addActionListener(e -> tumunuGoster());
+        filterBar.add(btnTumu);
 
-        panel.add(filterPanel, BorderLayout.NORTH);
+        panel.add(filterBar, BorderLayout.NORTH);
 
-        // TABLO
-        String[] columns = {"GizliID", "Hasta Adı", "Tarih", "Saat", "Durum", "Mevcut Not"};
-        tableModel = new DefaultTableModel(columns, 0) {
-            @Override public boolean isCellEditable(int row, int column) { return false; }
-        };
+        // Tablo
+        String[] cols = {"ID", "Hasta Adı", "Tarih", "Saat", "Durum", "Notlar"};
+        tableModel = new DefaultTableModel(cols, 0) { @Override public boolean isCellEditable(int r, int c) { return false; } };
         tableRandevular = new JTable(tableModel);
+        tableRandevular.setRowHeight(35);
+        try { tableRandevular.getColumnModel().getColumn(4).setCellRenderer(new StatusCellRenderer()); } catch (Exception e) {}
+        tableRandevular.getColumnModel().getColumn(0).setMinWidth(0); tableRandevular.getColumnModel().getColumn(0).setMaxWidth(0);
 
-// --- GÖRSEL AYARLAR BAŞLANGIÇ ---
-        tableRandevular.setRowHeight(35); // Satır yüksekliği
-        tableRandevular.setShowHorizontalLines(true);
-        tableRandevular.setShowVerticalLines(false);
-        tableRandevular.getTableHeader().setFont(new Font("Segoe UI", Font.BOLD, 14));
-        tableRandevular.getTableHeader().setOpaque(false);
-        tableRandevular.getTableHeader().setBackground(new Color(33, 150, 243)); // Başlık Mavi olsun
-        tableRandevular.getTableHeader().setForeground(Color.WHITE); // Başlık yazısı Beyaz
-        tableRandevular.setSelectionBackground(new Color(232, 240, 254)); // Seçilince açık mavi olsun
-        tableRandevular.setSelectionForeground(Color.BLACK);
-
-        randevulariListele(false); // İlk açılışta hepsi
-
+        randevulariListele(); // İlk açılışta listele
         panel.add(new JScrollPane(tableRandevular), BorderLayout.CENTER);
 
-        // BUTONLAR (GELMEDİ EKLENDİ)
-        JPanel bottomPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT));
+        // Butonlar
+        JPanel btnPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT));
+        JButton btnGelmedi = new JButton("GELMEDİ"); btnGelmedi.setBackground(Color.GRAY); btnGelmedi.setForeground(Color.WHITE);
+        btnGelmedi.addActionListener(e -> durumDegistir("GELMEDİ"));
 
-        JButton btnGelmedi = new JButton("GELMEDİ");
-        btnGelmedi.setBackground(Color.GRAY); btnGelmedi.setForeground(Color.WHITE);
-        btnGelmedi.addActionListener(e -> durumDegistir("GELMEDİ")); // YENİ
-
-        JButton btnTamamla = new JButton("TAMAMLA");
-        btnTamamla.setBackground(new Color(40, 167, 69)); btnTamamla.setForeground(Color.WHITE);
+        JButton btnTamamla = new JButton("TAMAMLA"); btnTamamla.setBackground(new Color(40, 167, 69)); btnTamamla.setForeground(Color.WHITE);
         btnTamamla.addActionListener(e -> durumDegistir("TAMAMLANDI"));
 
-        JButton btnNot = new JButton("Not Gir");
+        JButton btnNot = new JButton("Not Gir"); btnNot.setBackground(new Color(23, 162, 184)); btnNot.setForeground(Color.WHITE);
         btnNot.addActionListener(e -> notGirisiYap());
 
-        bottomPanel.add(btnNot);
-        bottomPanel.add(btnGelmedi);
-        bottomPanel.add(btnTamamla);
-
-        panel.add(bottomPanel, BorderLayout.SOUTH);
+        btnPanel.add(btnNot); btnPanel.add(btnGelmedi); btnPanel.add(btnTamamla);
+        panel.add(btnPanel, BorderLayout.SOUTH);
         return panel;
     }
 
-    // YENİ: ÇALIŞMA SAATLERİ AYARLAMA EKRANI
-    private JPanel createCalismaSaatleriPanel() {
+    private JPanel createHoursPanel() {
         JPanel panel = new JPanel(new GridBagLayout());
         GridBagConstraints gbc = new GridBagConstraints();
-        gbc.insets = new Insets(10, 10, 10, 10);
-        gbc.fill = GridBagConstraints.HORIZONTAL;
-
-        String[] gunler = {"MONDAY", "TUESDAY", "WEDNESDAY", "THURSDAY", "FRIDAY"};
+        gbc.insets = new Insets(10, 10, 10, 10); gbc.fill = GridBagConstraints.HORIZONTAL;
         String[] gunlerTr = {"Pazartesi", "Salı", "Çarşamba", "Perşembe", "Cuma"};
-
+        String[] gunlerEng = {"MONDAY", "TUESDAY", "WEDNESDAY", "THURSDAY", "FRIDAY"};
         JComboBox<String> cmbGun = new JComboBox<>(gunlerTr);
-        JComboBox<String> cmbBaslangic = new JComboBox<>(new String[]{"09:00", "10:00", "11:00", "12:00", "13:00", "14:00"});
-        JComboBox<String> cmbBitis = new JComboBox<>(new String[]{"12:00", "13:00", "14:00", "15:00", "16:00", "17:00"});
-
-        gbc.gridx=0; gbc.gridy=0; panel.add(new JLabel("Gün Seçiniz:"), gbc);
-        gbc.gridx=1; panel.add(cmbGun, gbc);
-
-        gbc.gridx=0; gbc.gridy=1; panel.add(new JLabel("Başlangıç Saati:"), gbc);
-        gbc.gridx=1; panel.add(cmbBaslangic, gbc);
-
-        gbc.gridx=0; gbc.gridy=2; panel.add(new JLabel("Bitiş Saati:"), gbc);
-        gbc.gridx=1; panel.add(cmbBitis, gbc);
-
-        JButton btnKaydet = new JButton("Saatleri Kaydet");
-        btnKaydet.setBackground(new Color(0, 150, 136));
-        btnKaydet.setForeground(Color.WHITE);
-
-        btnKaydet.addActionListener(e -> {
-            int index = cmbGun.getSelectedIndex();
-            String secilenGun = gunler[index]; // İngilizce gün adını al (MONDAY)
-            String bas = (String) cmbBaslangic.getSelectedItem();
-            String bit = (String) cmbBitis.getSelectedItem();
-
-            if(doctorService.calismaSaatiEkle(loggedInDoctor.getId(), secilenGun, bas, bit)) {
-                JOptionPane.showMessageDialog(this, gunlerTr[index] + " günü için saatler ayarlandı!");
-            }
+        JComboBox<String> cmbBas = new JComboBox<>(new String[]{"09:00", "10:00", "11:00", "12:00", "13:00"});
+        JComboBox<String> cmbBit = new JComboBox<>(new String[]{"13:00", "14:00", "15:00", "16:00", "17:00"});
+        gbc.gridx=0; gbc.gridy=0; panel.add(new JLabel("Gün:"), gbc); gbc.gridx=1; panel.add(cmbGun, gbc);
+        gbc.gridx=0; gbc.gridy=1; panel.add(new JLabel("Başlangıç:"), gbc); gbc.gridx=1; panel.add(cmbBas, gbc);
+        gbc.gridx=0; gbc.gridy=2; panel.add(new JLabel("Bitiş:"), gbc); gbc.gridx=1; panel.add(cmbBit, gbc);
+        JButton btn = new JButton("Kaydet"); btn.setBackground(new Color(0, 150, 136)); btn.setForeground(Color.WHITE);
+        btn.addActionListener(e -> {
+            if(doctorService.calismaSaatiEkle(loggedInDoctor.getId(), gunlerEng[cmbGun.getSelectedIndex()], (String)cmbBas.getSelectedItem(), (String)cmbBit.getSelectedItem()))
+                JOptionPane.showMessageDialog(this, "Kaydedildi!");
         });
-
-        gbc.gridx=1; gbc.gridy=3; panel.add(btnKaydet, gbc);
-
-        // Bilgi Notu
-        gbc.gridx=0; gbc.gridy=4; gbc.gridwidth=2;
-        panel.add(new JLabel("<html><i>Not: Ayarlamadığınız günlerde müsait görünmezsiniz.<br>Varsayılan: Ayar yoksa randevu alınamaz.</i></html>"), gbc);
-
+        gbc.gridx=1; gbc.gridy=3; panel.add(btn, gbc);
         return panel;
     }
 
     private JPanel createProfilPanel() {
-        JPanel panel = new JPanel(new GridLayout(7, 2, 20, 20)); // Satır sayısı arttı
-        panel.setBorder(new EmptyBorder(50, 100, 50, 100));
-
+        JPanel panel = new JPanel(new GridLayout(7, 2, 10, 10));
+        panel.setBorder(new EmptyBorder(50, 150, 50, 150));
         panel.add(new JLabel("Ad:")); txtAd = new JTextField(loggedInDoctor.getAd()); panel.add(txtAd);
         panel.add(new JLabel("Soyad:")); txtSoyad = new JTextField(loggedInDoctor.getSoyad()); panel.add(txtSoyad);
         panel.add(new JLabel("Tel:")); txtTel = new JTextField(loggedInDoctor.getTelefon()); panel.add(txtTel);
         panel.add(new JLabel("Email:")); txtEmail = new JTextField(loggedInDoctor.getEmail()); panel.add(txtEmail);
-
-        // YENİ: ŞİFRE DEĞİŞTİRME
-        panel.add(new JLabel("Yeni Şifre (Boş bırakırsan değişmez):"));
-        txtSifre = new JPasswordField();
-        panel.add(txtSifre);
-
-        JButton btnGuncelle = new JButton("Bilgilerimi Güncelle");
-        btnGuncelle.addActionListener(e -> profilGuncelle());
-        panel.add(btnGuncelle);
-
+        panel.add(new JLabel("Yeni Şifre:")); txtSifre = new JPasswordField(); panel.add(txtSifre);
+        JButton btn = new JButton("Güncelle"); btn.addActionListener(e -> profilGuncelle());
+        panel.add(btn);
         return panel;
     }
 
-    private void randevulariListele(boolean filtreli) {
+    private void randevulariListele() {
         tableModel.setRowCount(0);
-        List<Appointment> list;
+        // Null kontrolü ile filtreleme
+        LocalDate bas = (dpBaslangic != null) ? dpBaslangic.getDate() : null;
+        LocalDate bit = (dpBitis != null) ? dpBitis.getDate() : null;
 
-        if (filtreli) {
-            LocalDate bas = dpBaslangic.getDate();
-            LocalDate bit = dpBitis.getDate();
-            if(bas == null || bit == null) { JOptionPane.showMessageDialog(this, "Tarih seçin!"); return; }
-            list = appointmentService.getRandevularByTarihAraligi(loggedInDoctor.getId(), bas, bit, true);
-        } else {
-            list = appointmentService.getRandevularByDoktor(loggedInDoctor.getId());
-        }
-
-        for (Appointment app : list) {
-            tableModel.addRow(new Object[]{app.getId(), app.getHastaAdi(), app.getTarih().toLocalDate(), app.getTarih().toLocalTime(), app.getDurum(), app.getNotlar()});
-        }
+        List<Appointment> list = appointmentService.aramaVeFiltrele(
+                loggedInDoctor.getId(),
+                bas,
+                bit,
+                txtSearch.getText(),
+                true
+        );
+        for (Appointment a : list) tableModel.addRow(new Object[]{a.getId(), a.getHastaAdi(), a.getTarih().toLocalDate(), a.getTarih().toLocalTime(), a.getDurum(), a.getNotlar()});
+        tableModel.fireTableDataChanged();
     }
 
-    private void durumDegistir(String yeniDurum) {
-        int row = tableRandevular.getSelectedRow();
-        if (row == -1) return;
-        int id = (int) tableModel.getValueAt(row, 0);
-        if(appointmentService.randevuDurumGuncelle(id, yeniDurum)) {
-            randevulariListele(false);
-        }
+    private void tumunuGoster() {
+        txtSearch.setText("");
+        dpBaslangic.setDate(null);
+        dpBitis.setDate(null);
+        randevulariListele();
+    }
+
+    private void durumDegistir(String s) {
+        int r = tableRandevular.getSelectedRow();
+        if(r!=-1 && appointmentService.randevuDurumGuncelle((int)tableModel.getValueAt(r,0), s)) randevulariListele();
     }
 
     private void notGirisiYap() {
-        int row = tableRandevular.getSelectedRow();
-        if (row == -1) return;
-        int id = (int) tableModel.getValueAt(row, 0);
-        String yeniNot = JOptionPane.showInputDialog(this, "Not:");
-        if (yeniNot != null) appointmentService.notEkle(id, yeniNot);
+        int r = tableRandevular.getSelectedRow();
+        if(r!=-1) {
+            String n = JOptionPane.showInputDialog(this, "Not:", tableModel.getValueAt(r, 5));
+            if(n!=null && appointmentService.notEkle((int)tableModel.getValueAt(r,0), n)) randevulariListele();
+        }
     }
 
     private void profilGuncelle() {
-        String yeniSifre = new String(txtSifre.getPassword());
-        if(authService.profilGuncelle(loggedInDoctor.getId(), txtAd.getText(), txtSoyad.getText(), txtTel.getText(), txtEmail.getText(), yeniSifre)) {
+        if(authService.profilGuncelle(loggedInDoctor.getId(), txtAd.getText(), txtSoyad.getText(), txtTel.getText(), txtEmail.getText(), new String(txtSifre.getPassword())))
             JOptionPane.showMessageDialog(this, "Güncellendi.");
-        }
     }
 }
