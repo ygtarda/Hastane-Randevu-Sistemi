@@ -8,10 +8,10 @@ Bu proje, **Yazılım Mimarisi ve Tasarımı** dersi kapsamında geliştirilmiş
 
 ## 👥 Proje Ekibi
 
-| Adı Soyadı | Öğrenci No |
-| :--- | :--- |
-| **Arda Yiğit** | 1230505022 |
-| **Abdullah Altunkaynak** | 1230505028 |
+| Adı Soyadı                   | Öğrenci No |
+|:-----------------------------| :--- |
+| [**Arda Yiğit**](https://github.com/ygtarda)           | 1230505022 |
+| [**Abdullah Altunkaynak**](https://github.com/aaltun00) | 1230505028 |
 
 ---
 
