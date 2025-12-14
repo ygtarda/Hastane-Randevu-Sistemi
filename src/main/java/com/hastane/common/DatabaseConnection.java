@@ -12,7 +12,7 @@ public class DatabaseConnection {
     // Bağlantı bilgileri (Kendi bilgisayarına göre güncellemelisin)
     private final String URL = "jdbc:mysql://localhost:3306/hastane_db";
     private final String USER = "root";     // Genelde "root"tur
-    private final String PASSWORD = "77117711aa";     // Şifren varsa buraya yaz (XAMPP kullanıyorsan boş bırak)
+    private final String PASSWORD = "";     // Şifren varsa buraya yaz (XAMPP kullanıyorsan boş bırak)
 
     // 2. Private constructor (Dışarıdan 'new' ile üretilmesini engeller)
     private DatabaseConnection() {

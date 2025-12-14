@@ -489,7 +489,7 @@ public class PatientDashboard extends JFrame {
         try { table.getColumnModel().getColumn(5).setCellRenderer(new StatusCellRenderer()); } catch (Exception e) {}
     }
 
-    // AKTİF LİSTEYİ DOLDUR (DÜZENLENDİ)
+    // AKTİF LİSTEYİ DOLDUR
     private void loadAktifRandevular() {
         tableModel.setRowCount(0);
 
@@ -526,7 +526,7 @@ public class PatientDashboard extends JFrame {
         }
     }
 
-    // GEÇMİŞ LİSTEYİ DOLDUR (YENİ)
+    // GEÇMİŞ LİSTEYİ DOLDUR
     private void loadGecmisRandevular() {
         modelGecmis.setRowCount(0);
         for (Appointment a : appointmentService.getGecmisRandevular(loggedInPatient.getId())) {

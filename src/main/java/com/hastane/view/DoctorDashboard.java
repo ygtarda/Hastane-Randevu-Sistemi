@@ -175,7 +175,7 @@ public class DoctorDashboard extends JFrame {
         return panel;
     }
 
-    // YENİ YARDIMCI METOT: DOKTOR İÇİN SİLME MANTIĞI
+    //  DOKTOR İÇİN SİLME MANTIĞI
     private void randevuSilIslemi() {
         int selectedRow = tableIptal.getSelectedRow(); // İptal tablosundan seçim alıyoruz
         if (selectedRow == -1) {
